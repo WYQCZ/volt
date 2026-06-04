@@ -7,13 +7,13 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 96
-num_worker = 96
+batch_size = 96  # Total across all GPUs; 2x V100S 32GB: per-GPU=48, reduce to 48/32 if OOM
+num_worker = 96  # Per-GPU = 96 / num_gpu; adjust based on CPU cores
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
 enable_amp = True
-amp_dtype = "bfloat16"
+amp_dtype = "float16"  # V100 (compute 7.0) does not support bfloat16; use float16 instead
 evaluate = False
 find_unused_parameters = False
 
@@ -80,7 +80,7 @@ model = dict(
     sde_teacher_feature_layer=6,
     curriculum_warmup_ratio=0.2,
     curriculum_schedule="cosine",
-    full_block_alignment=True,
+    full_block_alignment=True,  # Sonata's match_neighbour already covers all points; this flag is for API compatibility only
 )
 
 # scheduler settings

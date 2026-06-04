@@ -10,6 +10,7 @@ Please cite our work if the code is helpful to you.
 import os
 import sys
 import argparse
+import logging
 import multiprocessing as mp
 import torch
 from torch.nn.parallel import DistributedDataParallel
@@ -18,6 +19,8 @@ from torch.nn.parallel import DistributedDataParallel
 import pointcept.utils.comm as comm
 from pointcept.utils.env import get_random_seed, set_seed
 from pointcept.utils.config import Config, DictAction
+
+logger = logging.getLogger("pointcept")
 
 AMP_DTYPE = dict(
     float16=torch.float16,
@@ -132,6 +135,16 @@ def default_config_parser(file_path, options):
 
 
 def default_setup(cfg):
+    # Auto-downgrade bfloat16 to float16 on GPUs with compute capability < 8.0 (e.g. V100)
+    if cfg.enable_amp and cfg.amp_dtype == "bfloat16" and torch.cuda.is_available():
+        cap = torch.cuda.get_device_capability()
+        if cap[0] < 8:
+            logger.warning(
+                f"GPU compute capability {cap[0]}.{cap[1]} < 8.0, "
+                f"bfloat16 is not supported. Auto-downgrading amp_dtype to float16."
+            )
+            cfg.amp_dtype = "float16"
+
     # scalar by world size
     world_size = comm.get_world_size()
     cfg.num_worker = cfg.num_worker if cfg.num_worker is not None else mp.cpu_count()

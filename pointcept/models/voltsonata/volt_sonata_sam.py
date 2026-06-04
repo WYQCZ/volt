@@ -598,11 +598,12 @@ class VoltSonataSAM(PointModel):
                         self.teacher_temp,
                     )
 
-                # Note: In Sonata, mask_loss is computed over all matched points
-                # (including masked regions whose features are inferred via attention).
-                # The "full_block_alignment" flag is kept for API compatibility but
-                # the behavior is equivalent since match_neighbour already covers
-                # all points in the student output.
+                # Note: Sonata's match_neighbour already covers ALL points in the
+                # student output (including masked regions inferred via attention),
+                # so the loss inherently operates over all blocks (full block alignment).
+                # The "full_block_alignment" flag is kept for API compatibility only;
+                # setting it to False does NOT restrict the loss to unmasked blocks,
+                # the behavior is always equivalent to full block alignment.
                 mask_loss = -torch.sum(
                     mask_target_sim
                     * F.log_softmax(

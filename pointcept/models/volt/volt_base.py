@@ -101,16 +101,23 @@ class RoPE_Attention(nn.Module):
 
         qkv_dtype = qkv.dtype
 
+        # Choose attention dtype based on GPU compute capability:
+        # V100 (compute 7.x) does not support bfloat16, use float16 instead.
+        if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8:
+            attn_dtype = torch.bfloat16
+        else:
+            attn_dtype = torch.float16
+
         if flash_attn is not None:
             x = flash_attn.flash_attn_varlen_qkvpacked_func(
-                qkv.half(),
+                qkv.to(attn_dtype),
                 cu_seqlens,
                 max_seqlen=max_seqlen,
             )
         else:
-            q_fa = q.half() * self.h_dim ** -0.5
-            k_fa = k.half()
-            v_fa = v.half()
+            q_fa = q.to(attn_dtype) * self.h_dim ** -0.5
+            k_fa = k.to(attn_dtype)
+            v_fa = v.to(attn_dtype)
             attn = torch.bmm(
                 q_fa.transpose(0, 1).reshape(-1, self.h_dim).unsqueeze(1),
                 k_fa.transpose(0, 1).reshape(-1, self.h_dim).unsqueeze(2),
