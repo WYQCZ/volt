@@ -199,8 +199,8 @@ class Trainer(TrainerBase):
             self.optimizer.zero_grad()
 
         # Forward pass
-        with torch.amp.autocast(
-            "cuda", enabled=self.cfg.enable_amp, dtype=AMP_DTYPE[self.cfg.amp_dtype]
+        with torch.cuda.amp.autocast(
+            enabled=self.cfg.enable_amp, dtype=AMP_DTYPE[self.cfg.amp_dtype]
         ):
             output_dict = self.model(input_dict)
             loss = (
@@ -389,7 +389,7 @@ class Trainer(TrainerBase):
         return build_scheduler(self.cfg.scheduler, self.optimizer)
 
     def build_scaler(self):
-        scaler = torch.amp.GradScaler(device="cuda") if self.cfg.enable_amp else None
+        scaler = torch.cuda.amp.GradScaler() if self.cfg.enable_amp else None
         return scaler
 
 

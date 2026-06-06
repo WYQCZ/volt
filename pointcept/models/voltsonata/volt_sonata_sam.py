@@ -18,6 +18,19 @@ from pointcept.models.utils import offset2batch, offset2bincount, batch2offset
 from pointcept.utils.comm import get_world_size, all_gather
 from pointcept.utils.scheduler import CosineScheduler
 
+
+def safe_segment_coo(src, index, reduce="mean"):
+    sort_idx = index.argsort()
+    sorted_index = index[sort_idx]
+    sorted_src = src[sort_idx]
+    return torch_scatter.segment_coo(sorted_src, sorted_index, reduce=reduce)
+
+
+def unpack_backbone(result):
+    if isinstance(result, tuple):
+        return result[0], result[1]
+    return result, None
+
 from pointcept.models.voltsonata.curriculum_scheduler import CurriculumScheduler
 from pointcept.models.voltsonata.adaptive_mask_generator import AdaptiveMaskGenerator
 from pointcept.models.voltsonata.semantic_difficulty_estimator import (
@@ -348,7 +361,7 @@ class VoltSonataSAM(PointModel):
         mask_patch_num = int(patch_num * mask_ratio)
         patch_index = torch.randperm(patch_num, device=coord.device)
         mask_patch_index = patch_index[:mask_patch_num]
-        point_mask = torch.isin(point_cluster, mask_patch_index)
+        point_mask = torch.isin(point_cluster.long(), mask_patch_index.long())
         return point_mask, point_cluster
 
     def generate_mask_at_token_level(self, num_tokens, device):
@@ -509,9 +522,12 @@ class VoltSonataSAM(PointModel):
                 )
             else:
                 global_point_ = self.teacher.backbone(global_point)
+                if isinstance(global_point_, tuple):
+                    global_point_, mid_features = global_point_
+                else:
+                    mid_features = None
                 global_point_ = self.up_cast(global_point_)
                 global_feat = global_point_.feat
-                mid_features = None
 
             # Step 2: Generate token-level mask
             # Masking operates at Volt token granularity (no dimension mismatch)
@@ -582,6 +598,8 @@ class VoltSonataSAM(PointModel):
                 global_point_.feat = self.teacher.mask_head(global_feat)
 
             mask_global_point_ = self.student.backbone(mask_global_point)
+            if isinstance(mask_global_point_, tuple):
+                mask_global_point_ = mask_global_point_[0]
             mask_global_point_ = self.up_cast(mask_global_point_)
             mask_pred_sim = self.student.mask_head(mask_global_point_.feat)
 
@@ -613,7 +631,7 @@ class VoltSonataSAM(PointModel):
                     dim=-1,
                 )
 
-                mask_loss = torch_scatter.segment_coo(
+                mask_loss = safe_segment_coo(
                     mask_loss,
                     index=mask_global_point_.batch[match_index[:, 0]],
                     reduce="mean",
@@ -642,7 +660,7 @@ class VoltSonataSAM(PointModel):
                     ),
                     dim=-1,
                 )
-                roll_mask_loss = torch_scatter.segment_coo(
+                roll_mask_loss = safe_segment_coo(
                     roll_mask_loss,
                     index=mask_global_point_.batch[match_index[:, 0]],
                     reduce="mean",
@@ -657,6 +675,8 @@ class VoltSonataSAM(PointModel):
                 global_point_.feat = self.teacher.unmask_head(global_feat)
 
             local_point_ = self.student.backbone(local_point)
+            if isinstance(local_point_, tuple):
+                local_point_ = local_point_[0]
             local_point_ = self.up_cast(local_point_)
             unmask_pred_sim = self.student.unmask_head(local_point_.feat)
 
@@ -683,7 +703,7 @@ class VoltSonataSAM(PointModel):
                 ),
                 dim=-1,
             )
-            unmask_loss = torch_scatter.segment_coo(
+            unmask_loss = safe_segment_coo(
                 unmask_loss,
                 index=local_point_.batch[match_index[:, 0]],
                 reduce="mean",

@@ -40,8 +40,7 @@ class ClsEvaluator(HookBase):
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
             with torch.no_grad():
-                with torch.amp.autocast(
-                    "cuda",
+                with torch.cuda.amp.autocast(
                     enabled=self.trainer.cfg.enable_amp,
                     dtype=AMP_DTYPE[self.trainer.cfg.amp_dtype],
                 ):
@@ -151,8 +150,7 @@ class SemSegEvaluator(HookBase):
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
             with torch.no_grad():
-                with torch.amp.autocast(
-                    "cuda",
+                with torch.cuda.amp.autocast(
                     enabled=self.trainer.cfg.enable_amp,
                     dtype=AMP_DTYPE[self.trainer.cfg.amp_dtype],
                 ):

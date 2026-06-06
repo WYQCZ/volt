@@ -9,6 +9,13 @@ from pointcept.models.utils.structure import Point
 from pointcept.models.utils import offset2batch, batch2offset
 
 
+def safe_segment_coo(src, index, reduce="mean"):
+    sort_idx = index.argsort()
+    sorted_index = index[sort_idx]
+    sorted_src = src[sort_idx]
+    return torch_scatter.segment_coo(sorted_src, sorted_index, reduce=reduce)
+
+
 @MODELS.register_module("VoltAdapter")
 class VoltBackboneAdapter(nn.Module):
     def __init__(
@@ -215,7 +222,7 @@ class VoltBackboneAdapter(nn.Module):
             if mask.shape[0] == M:
                 spconv_token_mask = mask[spconv_to_logical]
             elif mask.shape[0] == N:
-                logical_token_has_mask = torch_scatter.segment_coo(
+                logical_token_has_mask = safe_segment_coo(
                     mask.float(), point_to_token, reduce="max"
                 )
                 spconv_token_mask = logical_token_has_mask[spconv_to_logical] > 0
@@ -223,7 +230,7 @@ class VoltBackboneAdapter(nn.Module):
                 raise ValueError(
                     f"mask shape {mask.shape} incompatible with N={N} or M={M}"
                 )
-            x.features[spconv_token_mask] = self.mask_token_embed.expand(
+            x.features[spconv_token_mask] = self.mask_token_embed.to(x.features.dtype).expand(
                 spconv_token_mask.sum(), -1
             )
 
@@ -250,7 +257,7 @@ class VoltBackboneAdapter(nn.Module):
             token_offset = batch2offset(token_batch_ids)
 
             if origin_coord is not None:
-                token_origin_coord = torch_scatter.segment_coo(
+                token_origin_coord = safe_segment_coo(
                     origin_coord, point_to_token, reduce="mean"
                 )
             else:

@@ -206,9 +206,7 @@ class SemSegTester(TesterBase):
                             input_dict[key] = input_dict[key].cuda(non_blocking=True)
                     idx_part = input_dict["index"]
                     with torch.no_grad():
-                        with torch.amp.autocast(
-                            "cuda",
-                            enabled=self.cfg.enable_amp,
+                        with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp,
                             dtype=AMP_DTYPE[self.cfg.amp_dtype],
                         ):
                             pred_part = self.model(input_dict)["seg_logits"]  # (n, k)
@@ -466,9 +464,7 @@ class DINOSemSegTester(TesterBase):
                     input_dict["dino_offset"] = dino_offset
                     idx_part = input_dict["index"]
                     with torch.no_grad():
-                        with torch.amp.autocast(
-                            "cuda",
-                            enabled=self.cfg.enable_amp,
+                        with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp,
                             dtype=AMP_DTYPE[self.cfg.amp_dtype],
                         ):
                             pred_part = self.model(input_dict)["seg_logits"]  # (n, k)
@@ -651,9 +647,7 @@ class ClsTester(TesterBase):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
             end = time.time()
             with torch.no_grad():
-                with torch.amp.autocast(
-                    "cuda",
-                    enabled=self.cfg.enable_amp,
+                with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp,
                     dtype=AMP_DTYPE[self.cfg.amp_dtype],
                 ):
                     output_dict = self.model(input_dict)
@@ -774,9 +768,7 @@ class ClsVotingTester(TesterBase):
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
             with torch.no_grad():
-                with torch.amp.autocast(
-                    "cuda",
-                    enabled=self.cfg.enable_amp,
+                with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp,
                     dtype=AMP_DTYPE[self.cfg.amp_dtype],
                 ):
                     pred_part = self.model(input_dict)["cls_logits"]
@@ -872,9 +864,7 @@ class PartSegTester(TesterBase):
                     if isinstance(input_dict[key], torch.Tensor):
                         input_dict[key] = input_dict[key].cuda(non_blocking=True)
                 with torch.no_grad():
-                    with torch.amp.autocast(
-                        "cuda",
-                        enabled=self.cfg.enable_amp,
+                    with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp,
                         dtype=AMP_DTYPE[self.cfg.amp_dtype],
                     ):
                         pred_part = self.model(input_dict)["cls_logits"]

@@ -42,7 +42,7 @@ dependencies = [
     "pointgroup-ops",
     "pointseg",
 ]
-requires-python = "==3.12.*"
+requires-python = ">=3.10"
 
 [tool.uv]
 required-environments = [

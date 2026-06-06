@@ -30,26 +30,27 @@ class RoPE(nn.Module):
         freqs_y = 1.0 / theta ** torch.linspace(0, 1, freq_split[1])
         freqs_z = 1.0 / theta ** torch.linspace(0, 1, freq_split[2])
 
-        # Precompute the complex values for the maximum possible grid size
-        self.register_buffer(
-            "cis_cache_x", self._precompute(freqs_x, max_grid_size[0]), persistent=False
-        )
-        self.register_buffer(
-            "cis_cache_y", self._precompute(freqs_y, max_grid_size[1]), persistent=False
-        )
-        self.register_buffer(
-            "cis_cache_z", self._precompute(freqs_z, max_grid_size[2]), persistent=False
-        )
+        cx = self._precompute(freqs_x, max_grid_size[0])
+        cy = self._precompute(freqs_y, max_grid_size[1])
+        cz = self._precompute(freqs_z, max_grid_size[2])
+        self.register_buffer("cis_cache_x_real", cx.real, persistent=False)
+        self.register_buffer("cis_cache_x_imag", cx.imag, persistent=False)
+        self.register_buffer("cis_cache_y_real", cy.real, persistent=False)
+        self.register_buffer("cis_cache_y_imag", cy.imag, persistent=False)
+        self.register_buffer("cis_cache_z_real", cz.real, persistent=False)
+        self.register_buffer("cis_cache_z_imag", cz.imag, persistent=False)
 
     def _precompute(self, freqs, max_pos):
-        # Create a lookup table [Max_Pos, Dim]
         freqs_pos = torch.outer(torch.arange(max_pos).float(), freqs)
         return torch.polar(torch.ones_like(freqs_pos), freqs_pos)
 
+    def _get_cis(self, real_buf, imag_buf, idx):
+        return torch.complex(real_buf[idx.long()], imag_buf[idx.long()])
+
     def compute_axial_cis_efficient(self, indices):
-        cis_x = self.cis_cache_x[indices[:, 0]]
-        cis_y = self.cis_cache_y[indices[:, 1]]
-        cis_z = self.cis_cache_z[indices[:, 2]]
+        cis_x = self._get_cis(self.cis_cache_x_real, self.cis_cache_x_imag, indices[:, 0])
+        cis_y = self._get_cis(self.cis_cache_y_real, self.cis_cache_y_imag, indices[:, 1])
+        cis_z = self._get_cis(self.cis_cache_z_real, self.cis_cache_z_imag, indices[:, 2])
         return torch.cat([cis_x, cis_y, cis_z], dim=-1).unsqueeze(0)
 
 

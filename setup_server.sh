@@ -9,7 +9,7 @@
 #   conda: 24.5.0, base Python 3.12.4
 #
 # 版本链 (严格受驱动限制):
-#   Python 3.11 (spconv-cu116 无 cp312 wheel)
+#   Python 3.10 (torchvision 0.14.1 无 cp311 wheel on cu116)
 #   PyTorch 1.13.1+cu116 (最后支持 cu116 的官方版本)
 #   torchvision 0.14.1
 #   spconv-cu116 2.3.6
@@ -25,9 +25,9 @@ VOLT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 echo "Project root: $VOLT_ROOT"
 
 echo "=========================================="
-echo "Step 1: 创建 conda 环境 (Python 3.11)"
+echo "Step 1: 创建 conda 环境 (Python 3.10)"
 echo "=========================================="
-conda create -n volt python=3.11 -y
+conda activate volt 2>/dev/null || conda create -n volt python=3.10 -y
 eval "$(conda shell.bash hook)"
 conda activate volt
 
@@ -46,13 +46,14 @@ nvcc --version || echo "WARNING: nvcc not found, pointops 编译可能失败"
 echo "=========================================="
 echo "Step 3: 安装 PyTorch 1.13.1+cu116"
 echo "=========================================="
-pip install torch==1.13.1 torchvision==0.14.1 --index-url https://download.pytorch.org/whl/cu116
+pip install --exists-action=i torch==1.13.1 torchvision==0.14.1 --index-url https://download.pytorch.org/whl/cu116
+pip install "setuptools<70"
 python -c "import torch; print(f'PyTorch {torch.__version__}, CUDA {torch.version.cuda}')"
 
 echo "=========================================="
 echo "Step 4: 安装 PyG 依赖 (torch-scatter, torch-cluster)"
 echo "=========================================="
-pip install torch-scatter torch-cluster -f https://data.pyg.org/whl/torch-1.13.1+cu116.html
+pip install pyg_lib==0.4.0 torch_scatter==2.1.1 torch_sparse==0.6.17 torch_cluster==1.6.1 torch_spline_conv==1.2.2 -f https://data.pyg.org/whl/torch-1.13.1+cu116.html
 pip install torch-geometric
 
 echo "=========================================="
